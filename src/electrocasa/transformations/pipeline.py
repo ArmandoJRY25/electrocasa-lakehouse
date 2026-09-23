@@ -1,7 +1,7 @@
 import dlt
 from pyspark.sql.functions import (
     col, current_timestamp, lit, trim, 
-    regexp_replace, try_to_date, try_cast, when, coalesce, avg, count, sum
+    regexp_replace, when, coalesce, avg, count, sum, expr
 )
 
 VOLUME_PATH = "/Volumes/electrocasa/bronze/landing_volume"
@@ -72,15 +72,14 @@ def bronze_tracking():
 @dlt.expect_or_drop("valid_monto_total", "monto_total > 0")
 def silver_ventas():
     df = dlt.read("bronze_ventas")
-    # Usamos try_to_date para tolerar diferentes formatos de fecha sin fallar
     fecha_parsed = coalesce(
-        try_to_date(col("fecha_venta"), "yyyy-MM-dd"),
-        try_to_date(col("fecha_venta"), "dd/MM/yyyy")
+        expr("try_to_date(fecha_venta, 'yyyy-MM-dd')"),
+        expr("try_to_date(fecha_venta, 'dd/MM/yyyy')")
     )
     return (
         df.filter(col("venta_id").isNotNull())
-        .withColumn("monto_total", try_cast(col("monto_total"), "double"))
-        .withColumn("cantidad", try_cast(col("cantidad"), "int"))
+        .withColumn("monto_total", expr("try_cast(monto_total as double)"))
+        .withColumn("cantidad", expr("try_cast(cantidad as int)"))
         .withColumn("fecha_venta", fecha_parsed)
         .withColumn("metodo_pago", trim(col("metodo_pago")))
     )
@@ -112,8 +111,8 @@ def silver_resenas():
     return (
         dlt.read("bronze_resenas")
         .filter(col("resena_id").isNotNull())
-        .withColumn("calificacion", try_cast(col("calificacion"), "int"))
-        .withColumn("fecha_resena", try_to_date(col("fecha_resena"), "yyyy-MM-dd"))
+        .withColumn("calificacion", expr("try_cast(calificacion as int)"))
+        .withColumn("fecha_resena", expr("try_to_date(fecha_resena, 'yyyy-MM-dd')"))
     )
 
 @dlt.table(name="silver_empleados", comment="Dimensión historizada de personal")
@@ -122,7 +121,7 @@ def silver_empleados():
     return (
         dlt.read("bronze_empleados")
         .filter(col("id_empleado").isNotNull())
-        .withColumn("salario", try_cast(col("salario"), "double"))
+        .withColumn("salario", expr("try_cast(salario as double)"))
     )
 
 @dlt.table(name="silver_tracking", comment="Tracking de envíos estandarizado")
