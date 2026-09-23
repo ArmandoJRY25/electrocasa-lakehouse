@@ -7,7 +7,7 @@ from pyspark.sql.functions import (
 VOLUME_PATH = "/Volumes/electrocasa/bronze/landing_volume"
 
 # ==========================================
-# 1. CAPA BRONZE (Ingesta cruda desde archivos en volumen)
+# 1. CAPA BRONZE (Ingesta cruda)
 # ==========================================
 
 @dlt.table(name="bronze_ventas", comment="Ingesta raw de ventas por sucursal")
@@ -60,7 +60,7 @@ def bronze_devoluciones():
         .withColumn("_source_file", col("_metadata.file_path"))
     )
 
-@dlt.table(name="bronze_tracking", comment="Capa Bronze: Ingesta directa desde Azure SQL vía Connection")
+@dlt.table(name="bronze_tracking", comment="Ingesta directa vía Lakehouse Federation")
 def bronze_tracking():
     return (
         spark.read.table("electrocasa_sql_source.dbo.TrackingEnvios")
@@ -87,7 +87,7 @@ def silver_ventas():
         .withColumn("metodo_pago", trim(col("metodo_pago")))
     )
 
-@dlt.table(name="silver_ventas_cuarentena", comment="Registros de ventas rechazados por calidad")
+@dlt.table(name="silver_ventas_cuarentena", comment="Registros rechazados por calidad con trazabilidad")
 def silver_ventas_cuarentena():
     df = dlt.read("bronze_ventas")
     return (
@@ -98,7 +98,7 @@ def silver_ventas_cuarentena():
         .drop("monto_num")
     )
 
-@dlt.table(name="silver_catalogo", comment="Catálogo estandarizado sin símbolos de moneda")
+@dlt.table(name="silver_catalogo", comment="Catálogo estandarizado")
 @dlt.expect_or_drop("valid_precio_lista", "precio_lista > 0")
 def silver_catalogo():
     precio_limpio = regexp_replace(col("precio_lista"), r"[^\d.]", "").cast("double")
@@ -110,7 +110,7 @@ def silver_catalogo():
         .withColumn("marca", coalesce(trim(col("marca")), lit("Generico")))
     )
 
-@dlt.table(name="silver_resenas", comment="Reseñas con expectativas de calificación en rango")
+@dlt.table(name="silver_resenas", comment="Reseñas con expectativas de rango")
 @dlt.expect("calificacion_en_rango", "calificacion >= 1 AND calificacion <= 5")
 def silver_resenas():
     return (
@@ -120,16 +120,17 @@ def silver_resenas():
         .withColumn("fecha_resena", expr("try_to_date(fecha_resena, 'yyyy-MM-dd')"))
     )
 
-@dlt.table(name="silver_empleados", comment="Dimensión historizada de personal")
+@dlt.table(name="silver_empleados", comment="Dimensión de personal limpia")
 @dlt.expect_or_drop("dni_no_nulo", "dni IS NOT NULL")
 def silver_empleados():
     return (
         dlt.read("bronze_empleados")
         .filter(col("id_empleado").isNotNull())
         .withColumn("salario", expr("try_cast(salario as double)"))
+        .withColumn("fecha_evento", expr("try_to_date(fecha_evento, 'yyyy-MM-dd')"))
     )
 
-@dlt.table(name="silver_tracking", comment="Tracking de envíos estandarizado")
+@dlt.table(name="silver_tracking", comment="Tracking normalizado")
 @dlt.expect("estado_valido", "estado_entrega IN ('ENTREGADO', 'EN_CAMINO', 'PENDIENTE', 'DEVUELTO')")
 def silver_tracking():
     estado_normalizado = when(col("estado_entrega").isin("Entregado", "entregado", "ENTREGADO"), "ENTREGADO") \
@@ -145,7 +146,7 @@ def silver_tracking():
     )
 
 # ==========================================
-# 3. CAPA GOLD (Data Marts analíticos de negocio)
+# 3. CAPA GOLD (Data Marts de Negocio)
 # ==========================================
 
 @dlt.table(name="gold_ventas_sucursal_mes", comment="Ventas y ticket promedio por sucursal")
@@ -164,7 +165,6 @@ def gold_ventas_sucursal_mes():
 def gold_resenas_categoria():
     resenas = dlt.read("silver_resenas")
     catalogo = dlt.read("silver_catalogo")
-    
     return (
         resenas.join(catalogo, "producto_id", "inner")
         .groupBy("categoria")
@@ -173,4 +173,13 @@ def gold_resenas_categoria():
             count(when(col("calificacion") <= 2, 1)).alias("total_resenas_negativas"),
             count("resena_id").alias("total_resenas")
         )
+    )
+
+@dlt.table(name="gold_dotacion_sucursal", comment="Dotación de personal por sucursal")
+def gold_dotacion_sucursal():
+    return (
+        dlt.read("silver_empleados")
+        .filter("tipo_evento != 'baja'")
+        .groupBy("sucursal_id")
+        .agg(count("id_empleado").alias("personal_activo"))
     )
