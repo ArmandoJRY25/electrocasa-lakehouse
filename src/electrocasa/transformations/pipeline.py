@@ -60,9 +60,12 @@ def bronze_devoluciones():
         .withColumn("_source_file", col("_metadata.file_path"))
     )
 
-@dlt.table(name="bronze_tracking", comment="Tracking de envíos courier temporal")
+@dlt.table(name="bronze_tracking", comment="Capa Bronze: Ingesta directa desde Azure SQL vía Connection")
 def bronze_tracking():
-    return spark.read.table("electrocasa.bronze.tracking_raw")
+    return (
+        spark.read.table("electrocasa_sql_source.dbo.TrackingEnvios")
+        .withColumn("_ingestion_timestamp", current_timestamp())
+    )
 
 # ==========================================
 # 2. CAPA SILVER (Limpieza, Calidad y Reglas)
