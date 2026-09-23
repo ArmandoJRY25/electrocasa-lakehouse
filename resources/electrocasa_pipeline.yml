@@ -4,7 +4,7 @@ resources:
       name: electrocasa-medallion-pipeline
       target: gold
       libraries:
-        - notebook:
+        - file:
             path: ../src/electrocasa/transformations/pipeline.py
       configuration:
         bundle.sourcePath: ${workspace.file_path}/src/electrocasa/transformations
