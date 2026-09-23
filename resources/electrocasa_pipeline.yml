@@ -3,6 +3,7 @@ resources:
     electrocasa_medallion_pipeline:
       name: electrocasa-medallion-pipeline
       target: gold
+      serverless: true
       libraries:
         - file:
             path: ../src/electrocasa/transformations/pipeline.py
