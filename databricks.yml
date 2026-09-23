@@ -7,9 +7,19 @@ include:
 targets:
   dev:
     default: true
+    mode: development
     workspace:
       host: https://dbc-42086900-aeca.cloud.databricks.com
     resources:
       pipelines:
         electrocasa_medallion_pipeline:
-          name: electrocasa_medallion_pipeline
+          target: gold
+
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-42086900-aeca.cloud.databricks.com
+    resources:
+      pipelines:
+        electrocasa_medallion_pipeline:
+          target: gold
