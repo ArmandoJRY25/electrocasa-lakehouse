@@ -1,0 +1,14 @@
+bundle:
+  name: electrocasa-lakehouse
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    default: true
+    workspace:
+      host: https://adb-4228965902118318.18.azuredatabricks.net
+    resources:
+      pipelines:
+        - name: electrocasa_medallion_pipeline

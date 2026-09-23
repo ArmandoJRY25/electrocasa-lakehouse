@@ -1,0 +1,10 @@
+resources:
+  pipelines:
+    electrocasa_medallion_pipeline:
+      name: electrocasa-medallion-pipeline
+      target: gold
+      libraries:
+        - notebook:
+            path: ../src/electrocasa/transformations/pipeline.py
+      configuration:
+        bundle.sourcePath: ${workspace.file_path}/src/electrocasa/transformations
