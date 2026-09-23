@@ -1,8 +1,20 @@
 resources:
   jobs:
-    electrocasa_lakehouse_job:
+    electrocasa_lakehouse_orchestration_job:
       name: electrocasa-lakehouse-orchestration-job
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: "America/Lima"
+      email_notifications:
+        on_failure:
+          - armando.ry25@outlook.com
       tasks:
+        - task_key: setup_environment
+          notebook_task:
+            notebook_path: ../notebooks/00_setup.ipynb
+
         - task_key: run_medallion_pipeline
+          depends_on:
+            - task_key: setup_environment
           pipeline_task:
             pipeline_id: ${resources.pipelines.electrocasa_medallion_pipeline.id}
