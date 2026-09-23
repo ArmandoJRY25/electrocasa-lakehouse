@@ -1,7 +1,7 @@
 import dlt
 from pyspark.sql.functions import (
-    col, current_timestamp, input_file_name, lit, trim, 
-    regexp_replace, to_date, when, row_number, coalesce, avg, count, sum
+    col, current_timestamp, lit, trim, 
+    regexp_replace, to_date, when, coalesce, avg, count, sum
 )
 from pyspark.sql.window import Window
 
@@ -21,7 +21,7 @@ def bronze_ventas():
         .option("header", "true")
         .load(f"{VOLUME_PATH}/ventas_sucursales.csv")
         .withColumn("_ingestion_timestamp", current_timestamp())
-        .withColumn("_source_file", input_file_name())
+        .withColumn("_source_file", col("_metadata.file_path"))
     )
 
 @dlt.table(name="bronze_catalogo", comment="Snapshot maestro de productos")
@@ -30,7 +30,7 @@ def bronze_catalogo():
         spark.read.format("json")
         .load(f"{VOLUME_PATH}/catalogo_productos.json")
         .withColumn("_ingestion_timestamp", current_timestamp())
-        .withColumn("_source_file", input_file_name())
+        .withColumn("_source_file", col("_metadata.file_path"))
     )
 
 @dlt.table(name="bronze_empleados", comment="Histórico crudo de RR.HH.")
@@ -40,7 +40,7 @@ def bronze_empleados():
         .option("header", "true")
         .load(f"{VOLUME_PATH}/empleados_rrhh.csv")
         .withColumn("_ingestion_timestamp", current_timestamp())
-        .withColumn("_source_file", input_file_name())
+        .withColumn("_source_file", col("_metadata.file_path"))
     )
 
 @dlt.table(name="bronze_resenas", comment="Reseñas semiestructuradas de clientes")
@@ -51,7 +51,7 @@ def bronze_resenas():
         .option("cloudFiles.schemaLocation", f"{CHECKPOINT_PATH}/schema_resenas")
         .load(f"{VOLUME_PATH}/resenas_clientes.json")
         .withColumn("_ingestion_timestamp", current_timestamp())
-        .withColumn("_source_file", input_file_name())
+        .withColumn("_source_file", col("_metadata.file_path"))
     )
 
 @dlt.table(name="bronze_devoluciones", comment="Registro crudo de devoluciones")
@@ -61,11 +61,10 @@ def bronze_devoluciones():
         .option("header", "true")
         .load(f"{VOLUME_PATH}/devoluciones.csv")
         .withColumn("_ingestion_timestamp", current_timestamp())
-        .withColumn("_source_file", input_file_name())
+        .withColumn("_source_file", col("_metadata.file_path"))
     )
 
-# Nota: tracking_raw ya fue cargado temporalmente vía script SQL en 00_setup.
-@dlt.table(name="bronze_tracking", comment="Tracking de envíos courier")
+@dlt.table(name="bronze_tracking", comment="Tracking de envíos courier temporal")
 def bronze_tracking():
     return spark.read.table("electrocasa.bronze.tracking_raw")
 
@@ -89,7 +88,6 @@ def silver_ventas():
         .withColumn("metodo_pago", trim(col("metodo_pago")))
     )
 
-# Tabla de Cuarentena trazable para registros que no pasan reglas críticas
 @dlt.table(name="silver_ventas_cuarentena", comment="Registros de ventas rechazados por calidad")
 def silver_ventas_cuarentena():
     return (
@@ -121,7 +119,7 @@ def silver_resenas():
         .withColumn("fecha_resena", to_date(col("fecha_resena"), "yyyy-MM-dd"))
     )
 
-@dlt.table(name="silver_empleados", comment="Dimensión historizada de personal (SCD Tipo 2)")
+@dlt.table(name="silver_empleados", comment="Dimensión historizada de personal")
 @dlt.expect_or_drop("dni_no_nulo", "dni IS NOT NULL")
 def silver_empleados():
     return (
