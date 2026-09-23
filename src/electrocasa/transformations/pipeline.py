@@ -3,24 +3,19 @@ from pyspark.sql.functions import (
     col, current_timestamp, lit, trim, 
     regexp_replace, to_date, when, coalesce, avg, count, sum
 )
-from pyspark.sql.window import Window
 
 VOLUME_PATH = "/Volumes/electrocasa/bronze/landing_volume"
-CHECKPOINT_PATH = "/Volumes/electrocasa/bronze/checkpoints"
 
 # ==========================================
-# 1. CAPA BRONZE (Ingesta cruda multiformato)
+# 1. CAPA BRONZE (Ingesta cruda desde archivos en volumen)
 # ==========================================
 
 @dlt.table(name="bronze_ventas", comment="Ingesta raw de ventas por sucursal")
 def bronze_ventas():
     return (
-        spark.readStream.format("cloudFiles")
-        .option("cloudFiles.format", "csv")
-        .option("cloudFiles.schemaLocation", f"{CHECKPOINT_PATH}/schema_ventas")
+        spark.read.format("csv")
         .option("header", "true")
-        .load(VOLUME_PATH)  # Apuntamos a la carpeta del volumen para que Auto Loader capture el archivo
-        .filter(col("_metadata.file_path").contains("ventas_sucursales.csv"))
+        .load(f"{VOLUME_PATH}/ventas_sucursales.csv")
         .withColumn("_ingestion_timestamp", current_timestamp())
         .withColumn("_source_file", col("_metadata.file_path"))
     )
@@ -47,11 +42,8 @@ def bronze_empleados():
 @dlt.table(name="bronze_resenas", comment="Reseñas semiestructuradas de clientes")
 def bronze_resenas():
     return (
-        spark.readStream.format("cloudFiles")
-        .option("cloudFiles.format", "json")
-        .option("cloudFiles.schemaLocation", f"{CHECKPOINT_PATH}/schema_resenas")
-        .load(VOLUME_PATH)
-        .filter(col("_metadata.file_path").contains("resenas_clientes.json"))
+        spark.read.format("json")
+        .load(f"{VOLUME_PATH}/resenas_clientes.json")
         .withColumn("_ingestion_timestamp", current_timestamp())
         .withColumn("_source_file", col("_metadata.file_path"))
     )
@@ -77,7 +69,7 @@ def bronze_tracking():
 @dlt.table(name="silver_ventas", comment="Ventas limpias con validación crítica")
 @dlt.expect_or_drop("valid_monto_total", "monto_total > 0")
 def silver_ventas():
-    df = dlt.read_stream("bronze_ventas")
+    df = dlt.read("bronze_ventas")
     fecha_parsed = coalesce(
         to_date(col("fecha_venta"), "yyyy-MM-dd"),
         to_date(col("fecha_venta"), "dd/MM/yyyy")
@@ -93,7 +85,7 @@ def silver_ventas():
 @dlt.table(name="silver_ventas_cuarentena", comment="Registros de ventas rechazados por calidad")
 def silver_ventas_cuarentena():
     return (
-        dlt.read_stream("bronze_ventas")
+        dlt.read("bronze_ventas")
         .filter("(monto_total <= 0) OR (monto_total IS NULL)")
         .withColumn("motivo_rechazo", lit("Monto total nulo o menor/igual a 0"))
         .withColumn("fecha_cuarentena", current_timestamp())
@@ -115,7 +107,7 @@ def silver_catalogo():
 @dlt.expect("calificacion_en_rango", "calificacion >= 1 AND calificacion <= 5")
 def silver_resenas():
     return (
-        dlt.read_stream("bronze_resenas")
+        dlt.read("bronze_resenas")
         .filter(col("resena_id").isNotNull())
         .withColumn("calificacion", col("calificacion").cast("int"))
         .withColumn("fecha_resena", to_date(col("fecha_resena"), "yyyy-MM-dd"))
