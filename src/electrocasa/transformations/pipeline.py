@@ -86,11 +86,13 @@ def silver_ventas():
 
 @dlt.table(name="silver_ventas_cuarentena", comment="Registros de ventas rechazados por calidad")
 def silver_ventas_cuarentena():
+    df = dlt.read("bronze_ventas")
     return (
-        dlt.read("bronze_ventas")
-        .filter("(monto_total <= 0) OR (monto_total IS NULL)")
+        df.withColumn("monto_num", expr("try_cast(monto_total as double)"))
+        .filter("(monto_num <= 0) OR (monto_num IS NULL)")
         .withColumn("motivo_rechazo", lit("Monto total nulo o menor/igual a 0"))
         .withColumn("fecha_cuarentena", current_timestamp())
+        .drop("monto_num")
     )
 
 @dlt.table(name="silver_catalogo", comment="Catálogo estandarizado sin símbolos de moneda")
