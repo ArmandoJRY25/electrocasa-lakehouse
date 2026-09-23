@@ -24,6 +24,7 @@ def bronze_ventas():
 def bronze_catalogo():
     return (
         spark.read.format("json")
+        .option("multiLine", "true")  # Solución para JSON multilínea
         .load(f"{VOLUME_PATH}/catalogo_productos.json")
         .withColumn("_ingestion_timestamp", current_timestamp())
         .withColumn("_source_file", col("_metadata.file_path"))
@@ -43,6 +44,7 @@ def bronze_empleados():
 def bronze_resenas():
     return (
         spark.read.format("json")
+        .option("multiLine", "true")  # Solución para JSON multilínea
         .load(f"{VOLUME_PATH}/resenas_clientes.json")
         .withColumn("_ingestion_timestamp", current_timestamp())
         .withColumn("_source_file", col("_metadata.file_path"))
