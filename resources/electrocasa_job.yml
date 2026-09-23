@@ -1,0 +1,8 @@
+resources:
+  jobs:
+    electrocasa_lakehouse_job:
+      name: electrocasa-lakehouse-orchestration-job
+      tasks:
+        - task_key: run_medallion_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.electrocasa_medallion_pipeline.id}
