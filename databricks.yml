@@ -8,7 +8,8 @@ targets:
   dev:
     default: true
     workspace:
-      host: https://adb-4228965902118318.18.azuredatabricks.net
+      host: https://dbc-42086900-aeca.cloud.databricks.com
     resources:
       pipelines:
-        - name: electrocasa_medallion_pipeline
+        electrocasa_medallion_pipeline:
+          name: electrocasa_medallion_pipeline
