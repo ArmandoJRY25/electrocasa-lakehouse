@@ -55,3 +55,17 @@ El proyecto está parametrizado para múltiples entornos (`dev` y `prod`) median
 1. **Configurar las credenciales o el entorno local de DAB**:
    ```bash
    databricks auth login --host https://<tu-workspace>.cloud.databricks.com
+
+---
+
+## 6. Imágenes de Evidencia
+
+<img width="1205" height="560" alt="bundle" src="https://github.com/user-attachments/assets/44820ed5-f7f6-442b-977e-2bdb62168c24" />
+
+<img width="878" height="483" alt="grupos" src="https://github.com/user-attachments/assets/58a3fe79-c040-43fd-b58d-e5388e0261d8" />
+
+<img width="538" height="553" alt="masking" src="https://github.com/user-attachments/assets/56ad8e9d-4172-4b6b-aac8-4a3959cf720d" />
+
+<img width="1203" height="554" alt="pipeline 2" src="https://github.com/user-attachments/assets/de6f2ce1-954e-44f8-b537-36fff169a559" />
+
+<img width="1198" height="555" alt="pipeline" src="https://github.com/user-attachments/assets/0c5b1a71-650f-4876-a37d-e0892b6f8a5a" />
